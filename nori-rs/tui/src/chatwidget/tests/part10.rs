@@ -1179,7 +1179,9 @@ async fn local_submission_waits_for_the_harness_prompt_broadcast() {
 }
 
 #[test]
-fn proactive_turn_does_not_enable_owned_request_controls() {
+fn proactive_turn_enables_cancel_controls() {
+    // Proactive turns (triggered by `_meta.nori.status=working`) are marked cancellable
+    // so that Esc and Ctrl-C can interrupt background agent runs the user didn't initiate.
     let (mut cancel_chat, mut cancel_rx, _op_rx) = make_chatwidget_manual();
     let cancel_generation = cancel_chat.session_generation;
 
@@ -1193,20 +1195,23 @@ fn proactive_turn_does_not_enable_owned_request_controls() {
         })
         .collect::<Vec<_>>();
     assert!(
-        !cancel_actions
+        cancel_actions
             .iter()
             .any(|action| matches!(action, crate::app_event::HarnessAction::Cancel)),
-        "{cancel_actions:#?}"
+        "expected Cancel action during proactive turn: {cancel_actions:#?}"
     );
 
+    // Session-management commands remain blocked during proactive turns since
+    // is_task_running is now set, matching owned-turn command gating.
     let (mut command_chat, mut command_rx, _op_rx) = make_chatwidget_manual();
     let command_generation = command_chat.session_generation;
     command_chat.handle_session_event(command_generation, nori_status_update("working"));
     command_chat.dispatch_command(SlashCommand::New);
 
     assert!(
-        std::iter::from_fn(|| command_rx.try_recv().ok())
-            .any(|event| matches!(event, AppEvent::NewSession))
+        !std::iter::from_fn(|| command_rx.try_recv().ok())
+            .any(|event| matches!(event, AppEvent::NewSession)),
+        "expected NewSession to be blocked during cancellable proactive turn"
     );
 }
 
