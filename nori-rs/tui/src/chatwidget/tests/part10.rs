@@ -1192,6 +1192,13 @@ fn proactive_turn_enables_cancel_controls() {
     // HarnessActionFailed rather than HarnessAction::Cancel. We verify the cancel code
     // path was taken (not begin_exit) by asserting HarnessActionFailed is present and
     // ExitRequest is absent.
+    //
+    // NOTE: The original test (proactive_turn_does_not_enable_owned_request_controls)
+    // asserted absence of HarnessAction::Cancel, which is vacuously true — that event
+    // can never appear in the test harness regardless of which code path is taken.
+    // Confirmed empirically: reverting just the test file while keeping our implementation
+    // change in place still passed, proving the original assertion caught nothing.
+    // ExitRequest (from begin_exit) is the meaningful negative signal here.
     let events: Vec<AppEvent> = std::iter::from_fn(|| cancel_rx.try_recv().ok()).collect();
     assert!(
         events.iter().any(|e| matches!(e, AppEvent::HarnessActionFailed(_))),
