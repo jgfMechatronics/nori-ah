@@ -1199,6 +1199,9 @@ fn proactive_turn_enables_cancel_controls() {
     // Confirmed empirically: reverting just the test file while keeping our implementation
     // change in place still passed, proving the original assertion caught nothing.
     // ExitRequest (from begin_exit) is the meaningful negative signal here.
+    //
+    // TODO (pre-PR): Wire up a mock harness so we can assert on the actual
+    // HarnessAction::Cancel event rather than the no-harness fallback.
     let events: Vec<AppEvent> = std::iter::from_fn(|| cancel_rx.try_recv().ok()).collect();
     assert!(
         events.iter().any(|e| matches!(e, AppEvent::HarnessActionFailed(_))),
