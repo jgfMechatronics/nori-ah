@@ -176,7 +176,7 @@ impl ChatWidget {
     fn start_proactive_turn(&mut self) {
         if !self.proactive_turn_active {
             self.proactive_turn_active = true;
-            self.start_task_presentation(false, true);
+            self.start_task_presentation(true);
         }
     }
 
@@ -475,20 +475,19 @@ impl ChatWidget {
     // Raw reasoning uses the same flow as summarized reasoning
 
     pub(super) fn on_task_started(&mut self) {
-        self.start_task_presentation(true, false);
+        self.start_task_presentation(true);
     }
 
-    fn start_task_presentation(&mut self, owned: bool, cancellable: bool) {
+    fn start_task_presentation(&mut self, owned: bool) {
         self.bottom_pane.clear_ctrl_c_quit_hint();
-        // Owned requests enable task controls; proactive work gets display-only status
-        // unless explicitly marked cancellable (e.g. background agent runs the user
-        // should still be able to interrupt with Esc or Ctrl-C).
-        if owned || cancellable {
+        // Owned requests enable task controls; proactive turns also pass owned=true
+        // so that Esc and Ctrl-C can cancel background agent runs.
+        if owned {
             self.bottom_pane.set_task_running(true);
         } else {
             self.bottom_pane.ensure_status_indicator();
         }
-        self.bottom_pane.set_interrupt_hint_visible(owned || cancellable);
+        self.bottom_pane.set_interrupt_hint_visible(owned);
         self.set_status_header(crate::status_indicator_widget::pick_status_message(
             self.config.custom_working_messages,
             &self.config.custom_working_message_list,
