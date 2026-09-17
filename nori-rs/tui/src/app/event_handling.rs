@@ -868,7 +868,13 @@ impl App {
                 return Ok(false);
             }
             AppEvent::HarnessAction(action) => {
-                self.chat_widget.submit_harness_action(action);
+                // Cancel gets special treatment: on_cancel_action handles
+                // proactive/observer turns that the harness can't cancel itself.
+                if matches!(action, crate::app_event::HarnessAction::Cancel) {
+                    self.chat_widget.on_cancel_action();
+                } else {
+                    self.chat_widget.submit_harness_action(action);
+                }
             }
             AppEvent::HistoryEntryLoaded {
                 log_id,
