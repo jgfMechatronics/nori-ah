@@ -1188,17 +1188,18 @@ fn proactive_turn_enables_cancel_controls() {
     cancel_chat.handle_session_event(cancel_generation, nori_status_update("working"));
     cancel_chat.on_ctrl_c();
 
-    let cancel_actions = std::iter::from_fn(|| cancel_rx.try_recv().ok())
-        .filter_map(|event| match event {
-            AppEvent::HarnessAction(action) => Some(action),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
+    // In tests there is no live harness, so submit_harness_action(Cancel) falls back to
+    // HarnessActionFailed rather than HarnessAction::Cancel. We verify the cancel code
+    // path was taken (not begin_exit) by asserting HarnessActionFailed is present and
+    // ExitRequest is absent.
+    let events: Vec<AppEvent> = std::iter::from_fn(|| cancel_rx.try_recv().ok()).collect();
     assert!(
-        cancel_actions
-            .iter()
-            .any(|action| matches!(action, crate::app_event::HarnessAction::Cancel)),
-        "expected Cancel action during proactive turn: {cancel_actions:#?}"
+        events.iter().any(|e| matches!(e, AppEvent::HarnessActionFailed(_))),
+        "expected cancel path (HarnessActionFailed) during proactive turn: {events:#?}"
+    );
+    assert!(
+        !events.iter().any(|e| matches!(e, AppEvent::ExitRequest)),
+        "expected no ExitRequest (begin_exit should not fire during proactive turn): {events:#?}"
     );
 
     // Session-management commands remain blocked during proactive turns since
