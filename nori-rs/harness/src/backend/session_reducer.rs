@@ -91,6 +91,10 @@ pub enum SideEffect {
     ResolvePermissionCancelled { request_id: String },
     /// Reject a prompt instead of adding it to the queue.
     RejectPromptBusy { event_id: String },
+    /// An observer (background) turn ended via `status=idle`.
+    /// The runtime driver uses this to abort the cancel watchdog if one is pending,
+    /// since observer turns have no `session/prompt` response to signal completion.
+    ObserverTurnEnded,
 }
 
 /// The output of a single reduction step.
@@ -591,6 +595,9 @@ fn reduce_metadata_update(
                 match status {
                     "working" => runtime.observer_turn_active = true,
                     "idle" => {
+                        if runtime.observer_turn_active {
+                            out.side_effects.push(SideEffect::ObserverTurnEnded);
+                        }
                         runtime.observer_turn_active = false;
                         runtime.orphan_update_warning_emitted = false;
                     }

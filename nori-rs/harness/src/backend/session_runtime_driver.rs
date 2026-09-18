@@ -891,6 +891,12 @@ impl AcpBackend {
                 });
                 *self.cancel_timeout_abort.lock().await = Some(watchdog.abort_handle());
             }
+            SideEffect::ObserverTurnEnded => {
+                if let Some(abort) = self.cancel_timeout_abort.lock().await.take() {
+                    debug!("Observer turn ended via status=idle — aborting cancel watchdog");
+                    abort.abort();
+                }
+            }
             SideEffect::RejectPromptBusy { event_id } => {
                 if let Some(response_tx) = self
                     .pending_prompt_submissions

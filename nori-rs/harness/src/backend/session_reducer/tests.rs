@@ -1304,3 +1304,39 @@ fn orphan_warning_resets_when_a_new_prompt_starts() {
         "a new prompt should reset the burst window so the warning fires again"
     );
 }
+
+// =========================================================================
+// Observer turn completion side effect
+// =========================================================================
+
+#[test]
+fn observer_idle_emits_observer_turn_ended_when_turn_was_active() {
+    let mut rt = new_runtime();
+    let mut norm = new_normalizer();
+
+    reduce(&mut rt, notification(nori_status_update("working")), &mut norm);
+    assert!(rt.observer_turn_active, "observer turn should be active after status=working");
+
+    let result = reduce(&mut rt, notification(nori_status_update("idle")), &mut norm);
+
+    assert!(
+        has_side_effect(&result.side_effects, |e| matches!(e, SideEffect::ObserverTurnEnded)),
+        "status=idle after an active observer turn should emit ObserverTurnEnded"
+    );
+    assert!(!rt.observer_turn_active, "observer turn should be cleared");
+}
+
+#[test]
+fn observer_idle_does_not_emit_observer_turn_ended_without_active_turn() {
+    // status=idle when no observer turn is active should NOT emit ObserverTurnEnded
+    // (avoids spuriously aborting watchdogs on stray idle signals)
+    let mut rt = new_runtime();
+    let mut norm = new_normalizer();
+
+    let result = reduce(&mut rt, notification(nori_status_update("idle")), &mut norm);
+
+    assert!(
+        !has_side_effect(&result.side_effects, |e| matches!(e, SideEffect::ObserverTurnEnded)),
+        "status=idle with no active observer turn should not emit ObserverTurnEnded"
+    );
+}
